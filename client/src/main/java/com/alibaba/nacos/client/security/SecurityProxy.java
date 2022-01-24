@@ -112,6 +112,7 @@ public class SecurityProxy {
             }
             
             for (String server : servers) {
+                // kuanghc1:这里是login方法
                 if (login(server)) {
                     lastRefreshTime = System.currentTimeMillis();
                     return true;
@@ -133,8 +134,8 @@ public class SecurityProxy {
     public boolean login(String server) {
         
         if (StringUtils.isNotBlank(username)) {
-            Map<String, String> params = new HashMap<String, String>(2);
-            Map<String, String> bodyMap = new HashMap<String, String>(2);
+            Map<String, String> params = new HashMap<>(2);
+            Map<String, String> bodyMap = new HashMap<>(2);
             params.put(PropertyKeyConst.USERNAME, username);
             bodyMap.put(PropertyKeyConst.PASSWORD, password);
             String url = HTTP + server + contextPath + LOGIN_URL;

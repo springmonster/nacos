@@ -21,18 +21,8 @@ import com.alibaba.nacos.api.ability.ClientAbilities;
 import com.alibaba.nacos.api.common.Constants;
 import com.alibaba.nacos.api.config.ConfigType;
 import com.alibaba.nacos.api.config.listener.Listener;
-import com.alibaba.nacos.api.config.remote.request.ClientConfigMetricRequest;
-import com.alibaba.nacos.api.config.remote.request.ConfigBatchListenRequest;
-import com.alibaba.nacos.api.config.remote.request.ConfigChangeNotifyRequest;
-import com.alibaba.nacos.api.config.remote.request.ConfigPublishRequest;
-import com.alibaba.nacos.api.config.remote.request.ConfigQueryRequest;
-import com.alibaba.nacos.api.config.remote.request.ConfigRemoveRequest;
-import com.alibaba.nacos.api.config.remote.response.ClientConfigMetricResponse;
-import com.alibaba.nacos.api.config.remote.response.ConfigChangeBatchListenResponse;
-import com.alibaba.nacos.api.config.remote.response.ConfigChangeNotifyResponse;
-import com.alibaba.nacos.api.config.remote.response.ConfigPublishResponse;
-import com.alibaba.nacos.api.config.remote.response.ConfigQueryResponse;
-import com.alibaba.nacos.api.config.remote.response.ConfigRemoveResponse;
+import com.alibaba.nacos.api.config.remote.request.*;
+import com.alibaba.nacos.api.config.remote.response.*;
 import com.alibaba.nacos.api.exception.NacosException;
 import com.alibaba.nacos.api.remote.RemoteConstants;
 import com.alibaba.nacos.api.remote.request.Request;
@@ -43,11 +33,7 @@ import com.alibaba.nacos.client.config.filter.impl.ConfigResponse;
 import com.alibaba.nacos.client.config.utils.ContentUtils;
 import com.alibaba.nacos.client.monitor.MetricsMonitor;
 import com.alibaba.nacos.client.naming.utils.CollectionUtils;
-import com.alibaba.nacos.client.utils.AppNameUtils;
-import com.alibaba.nacos.client.utils.EnvUtil;
-import com.alibaba.nacos.client.utils.LogUtils;
-import com.alibaba.nacos.client.utils.ParamUtil;
-import com.alibaba.nacos.client.utils.TenantUtil;
+import com.alibaba.nacos.client.utils.*;
 import com.alibaba.nacos.common.lifecycle.Closeable;
 import com.alibaba.nacos.common.notify.Event;
 import com.alibaba.nacos.common.notify.NotifyCenter;
@@ -57,31 +43,13 @@ import com.alibaba.nacos.common.remote.client.ConnectionEventListener;
 import com.alibaba.nacos.common.remote.client.RpcClient;
 import com.alibaba.nacos.common.remote.client.RpcClientFactory;
 import com.alibaba.nacos.common.remote.client.ServerListFactory;
-import com.alibaba.nacos.common.utils.ConvertUtils;
-import com.alibaba.nacos.common.utils.JacksonUtils;
-import com.alibaba.nacos.common.utils.MD5Utils;
-import com.alibaba.nacos.common.utils.StringUtils;
-import com.alibaba.nacos.common.utils.ThreadUtils;
-import com.alibaba.nacos.common.utils.VersionUtils;
+import com.alibaba.nacos.common.utils.*;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import org.slf4j.Logger;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.alibaba.nacos.api.common.Constants.ENCODE;
@@ -127,11 +95,11 @@ public class ClientWorker implements Closeable {
     private int taskPenaltyTime;
     
     private boolean enableRemoteSyncConfig = false;
-
+    
     private static final int MIN_THREAD_NUM = 2;
-
+    
     private static final int THREAD_MULTIPLE = 1;
-
+    
     /**
      * Add listeners for data.
      *
@@ -186,7 +154,7 @@ public class ClientWorker implements Closeable {
      * @throws NacosException nacos exception
      */
     public void addTenantListenersWithContent(String dataId, String group, String content,
-            List<? extends Listener> listeners) throws NacosException {
+                                              List<? extends Listener> listeners) throws NacosException {
         group = blank2defaultGroup(group);
         String tenant = agent.getTenant();
         CacheData cache = addCacheDataIfAbsent(dataId, group, tenant);
@@ -287,7 +255,7 @@ public class ClientWorker implements Closeable {
      * @throws NacosException exception throw.
      */
     public boolean publishConfig(String dataId, String group, String tenant, String appName, String tag, String betaIps,
-            String content, String encryptedDataKey, String casMd5, String type) throws NacosException {
+                                 String content, String encryptedDataKey, String casMd5, String type) throws NacosException {
         return agent
                 .publishConfig(dataId, group, tenant, appName, tag, betaIps, content, encryptedDataKey, casMd5, type);
     }
@@ -403,7 +371,7 @@ public class ClientWorker implements Closeable {
     
     @SuppressWarnings("PMD.ThreadPoolCreationRule")
     public ClientWorker(final ConfigFilterChainManager configFilterChainManager, ServerListManager serverListManager,
-            final Properties properties) throws NacosException {
+                        final Properties properties) throws NacosException {
         this.configFilterChainManager = configFilterChainManager;
         
         init(properties);
@@ -688,11 +656,16 @@ public class ClientWorker implements Closeable {
             executor.schedule(() -> {
                 while (!executor.isShutdown() && !executor.isTerminated()) {
                     try {
+                        // kuanghc1：这是一个阻塞队列，5秒执行一次
+                        // 这里有啥用？？？
                         listenExecutebell.poll(5L, TimeUnit.SECONDS);
+                        
                         if (executor.isShutdown() || executor.isTerminated()) {
                             continue;
                         }
+                        
                         executeConfigListen();
+                        
                     } catch (Exception e) {
                         LOGGER.error("[ rpc listen execute ] [rpc listen] exception", e);
                     }
@@ -713,11 +686,11 @@ public class ClientWorker implements Closeable {
         
         @Override
         public void executeConfigListen() {
-            
-            Map<String, List<CacheData>> listenCachesMap = new HashMap<String, List<CacheData>>(16);
-            Map<String, List<CacheData>> removeListenCachesMap = new HashMap<String, List<CacheData>>(16);
+            Map<String, List<CacheData>> listenCachesMap = new HashMap<>(16);
+            Map<String, List<CacheData>> removeListenCachesMap = new HashMap<>(16);
             long now = System.currentTimeMillis();
             boolean needAllSync = now - lastAllSyncTime >= ALL_SYNC_INTERNAL;
+            
             for (CacheData cache : cacheMap.get().values()) {
                 
                 synchronized (cache) {
@@ -873,7 +846,7 @@ public class ClientWorker implements Closeable {
             synchronized (ClientWorker.this) {
                 
                 Map<String, String> labels = getLabels();
-                Map<String, String> newLabels = new HashMap<String, String>(labels);
+                Map<String, String> newLabels = new HashMap<>(labels);
                 newLabels.put("taskId", taskId);
                 
                 RpcClient rpcClient = RpcClientFactory
@@ -1046,7 +1019,7 @@ public class ClientWorker implements Closeable {
         
         @Override
         public boolean publishConfig(String dataId, String group, String tenant, String appName, String tag,
-                String betaIps, String content, String encryptedDataKey, String casMd5, String type)
+                                     String betaIps, String content, String encryptedDataKey, String casMd5, String type)
                 throws NacosException {
             try {
                 ConfigPublishRequest request = new ConfigPublishRequest(dataId, group, tenant, content);

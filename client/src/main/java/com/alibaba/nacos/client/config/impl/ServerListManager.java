@@ -309,6 +309,7 @@ public class ServerListManager implements Closeable {
                     "fail to get NACOS-server serverlist! env:" + name + ", not connnect url:" + addressServerUrl);
         }
         
+        // kuanghc1:这里是每隔30秒查看服务器的地址列表
         // executor schedules the timer task
         this.executorService.scheduleWithFixedDelay(getServersTask, 0L, 30L, TimeUnit.SECONDS);
         isStarted = true;

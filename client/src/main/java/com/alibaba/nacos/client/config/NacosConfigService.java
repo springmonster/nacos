@@ -70,6 +70,7 @@ public class NacosConfigService implements ConfigService {
     
     private final ConfigFilterChainManager configFilterChainManager;
     
+    // kuanghc1：这里是启动的地方
     public NacosConfigService(Properties properties) throws NacosException {
         ValidatorUtils.checkInitParam(properties);
         
@@ -80,6 +81,7 @@ public class NacosConfigService implements ConfigService {
         
         this.worker = new ClientWorker(this.configFilterChainManager, serverListManager, properties);
         // will be deleted in 2.0 later versions
+        // kuanghc1：这个可以不看
         agent = new ServerHttpAgent(serverListManager);
         
     }

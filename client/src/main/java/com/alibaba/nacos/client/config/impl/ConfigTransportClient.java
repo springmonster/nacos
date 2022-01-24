@@ -53,7 +53,7 @@ public abstract class ConfigTransportClient {
     
     private static final Logger LOGGER = LogUtils.logger(ConfigTransportClient.class);
     
-    private static final String SECURITY_TOKEN_HEADER =  "Spas-SecurityToken";
+    private static final String SECURITY_TOKEN_HEADER = "Spas-SecurityToken";
     
     private static final String ACCESS_KEY_HEADER = "Spas-AccessKey";
     
@@ -236,6 +236,7 @@ public abstract class ConfigTransportClient {
     }
     
     /**
+     * kuanghc1:这里是5秒中去请求一次login接口
      * base start client.
      */
     public void start() throws NacosException {
@@ -243,15 +244,11 @@ public abstract class ConfigTransportClient {
         if (securityProxy.isEnabled()) {
             securityProxy.login(serverListManager.getServerUrls());
             
-            this.executor.scheduleWithFixedDelay(new Runnable() {
-                @Override
-                public void run() {
-                    securityProxy.login(serverListManager.getServerUrls());
-                }
-            }, 0, this.securityInfoRefreshIntervalMills, TimeUnit.MILLISECONDS);
+            this.executor.scheduleWithFixedDelay(() -> securityProxy.login(serverListManager.getServerUrls()), 0, this.securityInfoRefreshIntervalMills, TimeUnit.MILLISECONDS);
             
         }
         
+        // kuanghc1：这里貌似比较关键
         startInternal();
     }
     
@@ -317,7 +314,7 @@ public abstract class ConfigTransportClient {
      * @throws NacosException throw where query fail .
      */
     public abstract ConfigResponse queryConfig(String dataId, String group, String tenat, long readTimeous,
-            boolean notify) throws NacosException;
+                                               boolean notify) throws NacosException;
     
     /**
      * publish config.
@@ -336,7 +333,7 @@ public abstract class ConfigTransportClient {
      * @throws NacosException throw where publish fail.
      */
     public abstract boolean publishConfig(String dataId, String group, String tenant, String appName, String tag,
-            String betaIps, String content, String encryptedDataKey, String casMd5, String type) throws NacosException;
+                                          String betaIps, String content, String encryptedDataKey, String casMd5, String type) throws NacosException;
     
     /**
      * remove config.
